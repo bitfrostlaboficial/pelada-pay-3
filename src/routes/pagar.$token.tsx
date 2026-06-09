@@ -15,6 +15,7 @@ type ChargeView = {
   due_date: string;
   status: "pendente" | "pago" | "vencido" | "cancelado";
   pix_copy_paste: string | null;
+  pix_qr_code: string | null;
   payment_link: string | null;
   paid_at: string | null;
   groups: { name: string; pix_recipient_name: string | null } | null;
@@ -30,7 +31,7 @@ function PayPage() {
   useEffect(() => {
     supabase
       .from("charges")
-      .select("id,description,amount,due_date,status,pix_copy_paste,payment_link,paid_at,groups(name,pix_recipient_name),participants(name)")
+      .select("id,description,amount,due_date,status,pix_copy_paste,pix_qr_code,payment_link,paid_at,groups(name,pix_recipient_name),participants(name)")
       .eq("public_token", token)
       .maybeSingle()
       .then(({ data }) => {
@@ -86,6 +87,11 @@ function PayPage() {
 
               {charge.pix_copy_paste ? (
                 <>
+                  {charge.pix_qr_code && (
+                    <div className="flex justify-center mb-4">
+                      <img src={`data:image/png;base64,${charge.pix_qr_code}`} alt="QR Code Pix" className="size-56 border-2 border-ink/10" />
+                    </div>
+                  )}
                   <div className="text-[10px] font-bold uppercase tracking-widest text-faded mb-2">Pix Copia e Cola</div>
                   <div className="border-2 border-ink/10 p-3 bg-paper text-xs font-mono break-all max-h-32 overflow-y-auto">
                     {charge.pix_copy_paste}

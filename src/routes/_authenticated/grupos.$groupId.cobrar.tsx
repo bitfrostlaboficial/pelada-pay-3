@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { getProvider } from "@/lib/payments";
+import { createMercadoPagoCharges } from "@/lib/payments/charges.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/grupos/$groupId/cobrar")({
@@ -11,6 +13,8 @@ export const Route = createFileRoute("/_authenticated/grupos/$groupId/cobrar")({
 
 type Participant = { id: string; name: string };
 type Group = { id: string; name: string; default_monthly_fee: number | null; pix_key: string | null; pix_recipient_name: string | null };
+type ProviderId = "pix_manual" | "mercado_pago";
+type MPCharge = { id: string; participant_name: string; amount: number; description: string; status: string; pix_copy_paste: string | null; pix_qr_code: string | null; payment_link: string | null; public_token: string; error?: string };
 
 function NewChargePage() {
   const { groupId } = Route.useParams();
@@ -25,6 +29,9 @@ function NewChargePage() {
     return d.toISOString().slice(0, 10);
   });
   const [saving, setSaving] = useState(false);
+  const [provider, setProvider] = useState<ProviderId>("mercado_pago");
+  const [results, setResults] = useState<MPCharge[] | null>(null);
+  const createMP = useServerFn(createMercadoPagoCharges);
 
   useEffect(() => {
     Promise.all([
@@ -53,6 +60,32 @@ function NewChargePage() {
     if (selected.size === 0) return toast.error("Selecione ao menos um jogador");
     if (!group) return;
     setSaving(true);
+
+    if (provider === "mercado_pago") {
+      try {
+        const res = await createMP({
+          data: {
+            groupId,
+            participantIds: Array.from(selected),
+            description,
+            amount: Number(amount),
+            dueDate,
+          },
+        });
+        const okCount = res.charges.filter((c) => !c.error).length;
+        if (okCount > 0) toast.success(`${okCount} cobrança(s) gerada(s) no Mercado Pago`);
+        const errs = res.charges.filter((c) => c.error);
+        if (errs.length > 0) toast.error(`Falha em ${errs.length}: ${errs[0].error}`);
+        setResults(res.charges);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro ao gerar cobrança";
+        toast.error(`Não foi possível gerar a cobrança. ${msg}`);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
@@ -106,6 +139,20 @@ function NewChargePage() {
       <p className="font-serif italic text-faded mb-8">{group.name}</p>
 
       <form onSubmit={submit} className="space-y-6 bg-white border-2 border-ink shadow-ledger-soft p-6">
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-widest">Forma de cobrança</label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <button type="button" onClick={() => setProvider("mercado_pago")} className={`p-3 border-2 text-left ${provider === "mercado_pago" ? "border-pitch bg-pitch/5" : "border-ink/15"}`}>
+              <div className="font-display text-lg">MERCADO PAGO</div>
+              <div className="text-[10px] text-faded uppercase tracking-widest">Pix automático + webhook</div>
+            </button>
+            <button type="button" onClick={() => setProvider("pix_manual")} className={`p-3 border-2 text-left ${provider === "pix_manual" ? "border-pitch bg-pitch/5" : "border-ink/15"}`}>
+              <div className="font-display text-lg">PIX MANUAL</div>
+              <div className="text-[10px] text-faded uppercase tracking-widest">Sua chave Pix</div>
+            </button>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
             <label className="text-[10px] font-bold uppercase tracking-widest">Descrição</label>
@@ -140,7 +187,7 @@ function NewChargePage() {
           )}
         </div>
 
-        {!group.pix_key && (
+        {provider === "pix_manual" && !group.pix_key && (
           <div className="border-2 border-canarinho bg-canarinho/10 p-3 text-xs">
             <strong>Atenção:</strong> Configure a chave Pix da pelada para gerar o copia-e-cola automaticamente. A cobrança será criada mesmo assim.
           </div>
@@ -150,6 +197,70 @@ function NewChargePage() {
           {saving ? "GERANDO..." : `GERAR ${selected.size} COBRANÇA${selected.size === 1 ? "" : "S"}`}
         </button>
       </form>
+
+      {results && <ChargesResultModal charges={results} onClose={() => { setResults(null); navigate({ to: "/grupos/$groupId", params: { groupId } }); }} />}
     </main>
+  );
+}
+
+function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const c = charges[idx];
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const copy = async (text: string | null) => {
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    toast.success("Pix copiado!");
+  };
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+      <div className="bg-white border-2 border-ink shadow-ledger max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b-2 border-ink/10">
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-faded">Cobrança {idx + 1} de {charges.length}</div>
+            <div className="font-display text-2xl uppercase">{c.participant_name}</div>
+          </div>
+          <button onClick={onClose} className="text-2xl px-2">×</button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="text-center">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-faded">{c.description}</div>
+            <div className="font-display text-5xl text-pitch mt-1">{fmt(c.amount)}</div>
+          </div>
+
+          {c.error ? (
+            <div className="bg-red-50 border-2 border-red-200 p-3 text-sm text-red-800">
+              <strong>Falha:</strong> {c.error}
+            </div>
+          ) : (
+            <>
+              {c.pix_qr_code && (
+                <div className="flex justify-center">
+                  <img src={`data:image/png;base64,${c.pix_qr_code}`} alt="QR Code Pix" className="size-56 border-2 border-ink/10" />
+                </div>
+              )}
+              {c.pix_copy_paste && (
+                <>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-faded">Pix Copia e Cola</div>
+                  <div className="border-2 border-ink/10 p-3 bg-paper text-xs font-mono break-all max-h-24 overflow-y-auto">{c.pix_copy_paste}</div>
+                  <button onClick={() => copy(c.pix_copy_paste)} className="w-full bg-pitch text-paper py-2 font-display text-lg tracking-wide">COPIAR PIX</button>
+                </>
+              )}
+              {c.payment_link && (
+                <a href={c.payment_link} target="_blank" rel="noreferrer" className="block text-center border-2 border-pitch text-pitch py-2 font-display text-lg tracking-wide hover:bg-pitch hover:text-paper transition-colors">ABRIR NO MERCADO PAGO ↗</a>
+              )}
+              <a href={`/pagar/${c.public_token}`} target="_blank" rel="noreferrer" className="block text-center text-xs font-bold uppercase tracking-widest text-faded hover:text-pitch">Link público para o jogador ↗</a>
+              <div className="text-center text-[10px] font-bold uppercase tracking-widest text-faded">Status: {c.status}</div>
+            </>
+          )}
+        </div>
+        {charges.length > 1 && (
+          <div className="flex gap-2 p-4 border-t-2 border-ink/10">
+            <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="flex-1 py-2 border border-ink/20 text-xs font-bold uppercase tracking-widest disabled:opacity-30">← Anterior</button>
+            <button onClick={() => setIdx((i) => Math.min(charges.length - 1, i + 1))} disabled={idx === charges.length - 1} className="flex-1 py-2 border border-ink/20 text-xs font-bold uppercase tracking-widest disabled:opacity-30">Próximo →</button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
