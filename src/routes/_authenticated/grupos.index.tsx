@@ -34,18 +34,30 @@ function GroupsPage() {
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-    const { data, error } = await supabase.from("groups").insert({
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+    if (!user) {
+      toast.error("Sessão expirada. Entre novamente.");
+      setCreating(false);
+      navigate({ to: "/auth" });
+      return;
+    }
+    const payload = {
       name,
       description: description || null,
       pix_key: pixKey || null,
       pix_recipient_name: recipientName || null,
       default_monthly_fee: monthlyFee ? Number(monthlyFee) : null,
-      created_by: userData.user.id,
-    }).select().single();
-    if (error) { toast.error(error.message); setCreating(false); return; }
-    // Setup default pix_manual provider config
+      created_by: user.id,
+    };
+    console.log("[grupos] insert", { uid: user.id, payload });
+    const { data, error } = await supabase.from("groups").insert(payload).select().single();
+    if (error) {
+      console.error("[grupos] insert error", error);
+      toast.error(`${error.message}${error.code ? ` (${error.code})` : ""}`);
+      setCreating(false);
+      return;
+    }
     if (pixKey && recipientName) {
       await supabase.from("payment_provider_configs").insert({
         group_id: data.id,
