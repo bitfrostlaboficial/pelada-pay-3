@@ -16,6 +16,7 @@ import { Route as PagarTokenRouteImport } from './routes/pagar.$token'
 import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated/grupos'
 import { Route as AuthenticatedGruposIndexRouteImport } from './routes/_authenticated/grupos.index'
 import { Route as AuthenticatedGruposGroupIdRouteImport } from './routes/_authenticated/grupos.$groupId'
+import { Route as ApiPublicWebhooksMercadopagoRouteImport } from './routes/api/public/webhooks/mercadopago'
 import { Route as AuthenticatedGruposGroupIdCobrarRouteImport } from './routes/_authenticated/grupos.$groupId.cobrar'
 
 const AuthRoute = AuthRouteImport.update({
@@ -54,6 +55,12 @@ const AuthenticatedGruposGroupIdRoute =
     path: '/$groupId',
     getParentRoute: () => AuthenticatedGruposRoute,
   } as any)
+const ApiPublicWebhooksMercadopagoRoute =
+  ApiPublicWebhooksMercadopagoRouteImport.update({
+    id: '/api/public/webhooks/mercadopago',
+    path: '/api/public/webhooks/mercadopago',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedGruposGroupIdCobrarRoute =
   AuthenticatedGruposGroupIdCobrarRouteImport.update({
     id: '/cobrar',
@@ -69,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
   '/grupos/': typeof AuthenticatedGruposIndexRoute
   '/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
+  '/api/public/webhooks/mercadopago': typeof ApiPublicWebhooksMercadopagoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -77,6 +85,7 @@ export interface FileRoutesByTo {
   '/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
   '/grupos': typeof AuthenticatedGruposIndexRoute
   '/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
+  '/api/public/webhooks/mercadopago': typeof ApiPublicWebhooksMercadopagoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -88,6 +97,7 @@ export interface FileRoutesById {
   '/_authenticated/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
   '/_authenticated/grupos/': typeof AuthenticatedGruposIndexRoute
   '/_authenticated/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
+  '/api/public/webhooks/mercadopago': typeof ApiPublicWebhooksMercadopagoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/grupos/$groupId'
     | '/grupos/'
     | '/grupos/$groupId/cobrar'
+    | '/api/public/webhooks/mercadopago'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/grupos/$groupId'
     | '/grupos'
     | '/grupos/$groupId/cobrar'
+    | '/api/public/webhooks/mercadopago'
   id:
     | '__root__'
     | '/'
@@ -117,6 +129,7 @@ export interface FileRouteTypes {
     | '/_authenticated/grupos/$groupId'
     | '/_authenticated/grupos/'
     | '/_authenticated/grupos/$groupId/cobrar'
+    | '/api/public/webhooks/mercadopago'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -124,6 +137,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   PagarTokenRoute: typeof PagarTokenRoute
+  ApiPublicWebhooksMercadopagoRoute: typeof ApiPublicWebhooksMercadopagoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -176,6 +190,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/grupos/$groupId'
       preLoaderRoute: typeof AuthenticatedGruposGroupIdRouteImport
       parentRoute: typeof AuthenticatedGruposRoute
+    }
+    '/api/public/webhooks/mercadopago': {
+      id: '/api/public/webhooks/mercadopago'
+      path: '/api/public/webhooks/mercadopago'
+      fullPath: '/api/public/webhooks/mercadopago'
+      preLoaderRoute: typeof ApiPublicWebhooksMercadopagoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/grupos/$groupId/cobrar': {
       id: '/_authenticated/grupos/$groupId/cobrar'
@@ -231,6 +252,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   PagarTokenRoute: PagarTokenRoute,
+  ApiPublicWebhooksMercadopagoRoute: ApiPublicWebhooksMercadopagoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
