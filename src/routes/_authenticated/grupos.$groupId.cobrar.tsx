@@ -89,7 +89,7 @@ function NewChargePage() {
     const { data: userData } = await supabase.auth.getUser();
     const userId = userData.user?.id;
 
-    const provider = getProvider({
+    const pixProvider = getProvider({
       provider: "pix_manual",
       config: { pix_key: group.pix_key ?? "", recipient_name: group.pix_recipient_name ?? "" },
     });
@@ -112,7 +112,7 @@ function NewChargePage() {
     if (group.pix_key && group.pix_recipient_name) {
       await Promise.all(inserted.map(async (c) => {
         const part = participants.find((p) => p.id === c.participant_id);
-        const res = await provider.createCharge({
+        const res = await pixProvider.createCharge({
           amount: Number(c.amount),
           description: c.description,
           dueDate: c.due_date,
