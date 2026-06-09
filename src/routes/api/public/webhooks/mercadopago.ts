@@ -31,10 +31,14 @@ export const Route = createFileRoute("/api/public/webhooks/mercadopago")({
           const newStatus = mapMpStatus(status);
           const externalRef: string | undefined = raw?.external_reference?.toString();
 
-          const update: Record<string, unknown> = { status: newStatus };
+          const update: {
+            status: "pendente" | "pago" | "vencido" | "cancelado";
+            paid_at?: string | null;
+            paid_amount?: number | null;
+          } = { status: newStatus };
           if (newStatus === "pago") {
             update.paid_at = raw?.date_approved ?? new Date().toISOString();
-            update.paid_amount = raw?.transaction_amount ?? undefined;
+            if (typeof raw?.transaction_amount === "number") update.paid_amount = raw.transaction_amount;
           }
 
           // Atualiza por external_reference (nosso charges.id) — mais confiável
