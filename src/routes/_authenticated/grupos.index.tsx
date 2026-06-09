@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/grupos")({
+export const Route = createFileRoute("/_authenticated/grupos/")({
   head: () => ({ meta: [{ title: "Minhas Peladas — Peladeiro" }] }),
   component: GroupsPage,
 });
