@@ -9,38 +9,139 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PagarTokenRouteImport } from './routes/pagar.$token'
+import { Route as AuthenticatedGruposRouteImport } from './routes/_authenticated/grupos'
+import { Route as AuthenticatedGruposIndexRouteImport } from './routes/_authenticated/grupos.index'
+import { Route as AuthenticatedGruposGroupIdRouteImport } from './routes/_authenticated/grupos.$groupId'
+import { Route as AuthenticatedGruposGroupIdCobrarRouteImport } from './routes/_authenticated/grupos.$groupId.cobrar'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PagarTokenRoute = PagarTokenRouteImport.update({
+  id: '/pagar/$token',
+  path: '/pagar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedGruposRoute = AuthenticatedGruposRouteImport.update({
+  id: '/grupos',
+  path: '/grupos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGruposIndexRoute =
+  AuthenticatedGruposIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedGruposRoute,
+  } as any)
+const AuthenticatedGruposGroupIdRoute =
+  AuthenticatedGruposGroupIdRouteImport.update({
+    id: '/$groupId',
+    path: '/$groupId',
+    getParentRoute: () => AuthenticatedGruposRoute,
+  } as any)
+const AuthenticatedGruposGroupIdCobrarRoute =
+  AuthenticatedGruposGroupIdCobrarRouteImport.update({
+    id: '/cobrar',
+    path: '/cobrar',
+    getParentRoute: () => AuthenticatedGruposGroupIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/grupos': typeof AuthenticatedGruposRouteWithChildren
+  '/pagar/$token': typeof PagarTokenRoute
+  '/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
+  '/grupos/': typeof AuthenticatedGruposIndexRoute
+  '/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/pagar/$token': typeof PagarTokenRoute
+  '/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
+  '/grupos': typeof AuthenticatedGruposIndexRoute
+  '/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/grupos': typeof AuthenticatedGruposRouteWithChildren
+  '/pagar/$token': typeof PagarTokenRoute
+  '/_authenticated/grupos/$groupId': typeof AuthenticatedGruposGroupIdRouteWithChildren
+  '/_authenticated/grupos/': typeof AuthenticatedGruposIndexRoute
+  '/_authenticated/grupos/$groupId/cobrar': typeof AuthenticatedGruposGroupIdCobrarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/grupos'
+    | '/pagar/$token'
+    | '/grupos/$groupId'
+    | '/grupos/'
+    | '/grupos/$groupId/cobrar'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/pagar/$token'
+    | '/grupos/$groupId'
+    | '/grupos'
+    | '/grupos/$groupId/cobrar'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/grupos'
+    | '/pagar/$token'
+    | '/_authenticated/grupos/$groupId'
+    | '/_authenticated/grupos/'
+    | '/_authenticated/grupos/$groupId/cobrar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  PagarTokenRoute: typeof PagarTokenRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +149,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pagar/$token': {
+      id: '/pagar/$token'
+      path: '/pagar/$token'
+      fullPath: '/pagar/$token'
+      preLoaderRoute: typeof PagarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/grupos': {
+      id: '/_authenticated/grupos'
+      path: '/grupos'
+      fullPath: '/grupos'
+      preLoaderRoute: typeof AuthenticatedGruposRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/grupos/': {
+      id: '/_authenticated/grupos/'
+      path: '/'
+      fullPath: '/grupos/'
+      preLoaderRoute: typeof AuthenticatedGruposIndexRouteImport
+      parentRoute: typeof AuthenticatedGruposRoute
+    }
+    '/_authenticated/grupos/$groupId': {
+      id: '/_authenticated/grupos/$groupId'
+      path: '/$groupId'
+      fullPath: '/grupos/$groupId'
+      preLoaderRoute: typeof AuthenticatedGruposGroupIdRouteImport
+      parentRoute: typeof AuthenticatedGruposRoute
+    }
+    '/_authenticated/grupos/$groupId/cobrar': {
+      id: '/_authenticated/grupos/$groupId/cobrar'
+      path: '/cobrar'
+      fullPath: '/grupos/$groupId/cobrar'
+      preLoaderRoute: typeof AuthenticatedGruposGroupIdCobrarRouteImport
+      parentRoute: typeof AuthenticatedGruposGroupIdRoute
+    }
   }
 }
 
+interface AuthenticatedGruposGroupIdRouteChildren {
+  AuthenticatedGruposGroupIdCobrarRoute: typeof AuthenticatedGruposGroupIdCobrarRoute
+}
+
+const AuthenticatedGruposGroupIdRouteChildren: AuthenticatedGruposGroupIdRouteChildren =
+  {
+    AuthenticatedGruposGroupIdCobrarRoute:
+      AuthenticatedGruposGroupIdCobrarRoute,
+  }
+
+const AuthenticatedGruposGroupIdRouteWithChildren =
+  AuthenticatedGruposGroupIdRoute._addFileChildren(
+    AuthenticatedGruposGroupIdRouteChildren,
+  )
+
+interface AuthenticatedGruposRouteChildren {
+  AuthenticatedGruposGroupIdRoute: typeof AuthenticatedGruposGroupIdRouteWithChildren
+  AuthenticatedGruposIndexRoute: typeof AuthenticatedGruposIndexRoute
+}
+
+const AuthenticatedGruposRouteChildren: AuthenticatedGruposRouteChildren = {
+  AuthenticatedGruposGroupIdRoute: AuthenticatedGruposGroupIdRouteWithChildren,
+  AuthenticatedGruposIndexRoute: AuthenticatedGruposIndexRoute,
+}
+
+const AuthenticatedGruposRouteWithChildren =
+  AuthenticatedGruposRoute._addFileChildren(AuthenticatedGruposRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedGruposRoute: typeof AuthenticatedGruposRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedGruposRoute: AuthenticatedGruposRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  PagarTokenRoute: PagarTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
