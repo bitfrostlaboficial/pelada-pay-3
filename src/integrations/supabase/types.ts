@@ -29,6 +29,7 @@ export type Database = {
           participant_id: string
           payment_link: string | null
           pix_copy_paste: string | null
+          pix_qr_code: string | null
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_charge_id: string | null
           public_token: string
@@ -49,6 +50,7 @@ export type Database = {
           participant_id: string
           payment_link?: string | null
           pix_copy_paste?: string | null
+          pix_qr_code?: string | null
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_charge_id?: string | null
           public_token?: string
@@ -69,6 +71,7 @@ export type Database = {
           participant_id?: string
           payment_link?: string | null
           pix_copy_paste?: string | null
+          pix_qr_code?: string | null
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_charge_id?: string | null
           public_token?: string
