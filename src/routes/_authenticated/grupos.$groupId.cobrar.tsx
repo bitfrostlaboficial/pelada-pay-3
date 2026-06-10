@@ -34,20 +34,25 @@ function NewChargePage() {
   const createMP = useServerFn(createMercadoPagoCharges);
 
   useEffect(() => {
+    const ref = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const defaultDesc = `Mensalidade ${ref}`;
     Promise.all([
       supabase.from("groups").select("id,name,default_monthly_fee,pix_key,pix_recipient_name").eq("id", groupId).maybeSingle(),
-      supabase.from("participants").select("id,name").eq("group_id", groupId).eq("is_active", true).order("name"),
-    ]).then(([g, p]) => {
+      supabase.from("participants").select("id,name,phone").eq("group_id", groupId).eq("is_active", true).order("name"),
+      supabase.from("charges").select("participant_id,description,status").eq("group_id", groupId),
+    ]).then(([g, p, c]) => {
       if (g.data) {
         setGroup(g.data as Group);
         if (g.data.default_monthly_fee) setAmount(String(g.data.default_monthly_fee));
-        const ref = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-        setDescription(`Mensalidade ${ref}`);
+        setDescription(defaultDesc);
       }
       const list = (p.data ?? []) as Participant[];
       setParticipants(list);
-      // Pré-seleciona todos os jogadores ativos (caso de uso mais comum: cobrar todo mundo)
-      setSelected(new Set(list.map((x) => x.id)));
+      // Pré-seleciona apenas quem ainda não pagou a descrição atual
+      const paidIds = new Set(((c.data ?? []) as Array<{ participant_id: string; description: string; status: string }>)
+        .filter((x) => x.status === "pago" && x.description === defaultDesc)
+        .map((x) => x.participant_id));
+      setSelected(new Set(list.filter((x) => !paidIds.has(x.id)).map((x) => x.id)));
     });
   }, [groupId]);
 
