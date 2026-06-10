@@ -11,10 +11,10 @@ export const Route = createFileRoute("/_authenticated/grupos/$groupId/cobrar")({
   component: NewChargePage,
 });
 
-type Participant = { id: string; name: string };
+type Participant = { id: string; name: string; phone: string | null };
 type Group = { id: string; name: string; default_monthly_fee: number | null; pix_key: string | null; pix_recipient_name: string | null };
 type ProviderId = "pix_manual" | "mercado_pago";
-type MPCharge = { id: string; participant_name: string; amount: number; description: string; status: string; pix_copy_paste: string | null; pix_qr_code: string | null; payment_link: string | null; public_token: string; error?: string };
+type MPCharge = { id: string; participant_id: string; participant_name: string; amount: number; description: string; status: string; pix_copy_paste: string | null; pix_qr_code: string | null; payment_link: string | null; public_token: string; error?: string };
 
 function NewChargePage() {
   const { groupId } = Route.useParams();
