@@ -11,10 +11,29 @@ export const Route = createFileRoute("/_authenticated/grupos/$groupId/cobrar")({
   component: NewChargePage,
 });
 
-type Participant = { id: string; name: string };
+// Helpers WhatsApp
+export function onlyDigits(s: string | null | undefined) { return (s ?? "").replace(/\D/g, ""); }
+export function normalizeBRPhone(phone: string | null | undefined): string | null {
+  const d = onlyDigits(phone);
+  if (!d) return null;
+  if (d.startsWith("55")) return d;
+  if (d.length === 10 || d.length === 11) return `55${d}`;
+  return d;
+}
+export function buildWaLink(phone: string | null | undefined, message: string): string | null {
+  const n = normalizeBRPhone(phone);
+  const text = encodeURIComponent(message);
+  return n ? `https://wa.me/${n}?text=${text}` : `https://wa.me/?text=${text}`;
+}
+export function buildChargeMessage(opts: { name: string; groupName: string; amount: number; paymentUrl: string }) {
+  const v = opts.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return `Oi ${opts.name}, sua cota da pelada ${opts.groupName} é ${v}. Pague aqui: ${opts.paymentUrl}`;
+}
+
+type Participant = { id: string; name: string; phone: string | null };
 type Group = { id: string; name: string; default_monthly_fee: number | null; pix_key: string | null; pix_recipient_name: string | null };
 type ProviderId = "pix_manual" | "mercado_pago";
-type MPCharge = { id: string; participant_name: string; amount: number; description: string; status: string; pix_copy_paste: string | null; pix_qr_code: string | null; payment_link: string | null; public_token: string; error?: string };
+type MPCharge = { id: string; participant_id: string; participant_name: string; amount: number; description: string; status: string; pix_copy_paste: string | null; pix_qr_code: string | null; payment_link: string | null; public_token: string; error?: string };
 
 function NewChargePage() {
   const { groupId } = Route.useParams();
@@ -34,20 +53,25 @@ function NewChargePage() {
   const createMP = useServerFn(createMercadoPagoCharges);
 
   useEffect(() => {
+    const ref = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const defaultDesc = `Mensalidade ${ref}`;
     Promise.all([
       supabase.from("groups").select("id,name,default_monthly_fee,pix_key,pix_recipient_name").eq("id", groupId).maybeSingle(),
-      supabase.from("participants").select("id,name").eq("group_id", groupId).eq("is_active", true).order("name"),
-    ]).then(([g, p]) => {
+      supabase.from("participants").select("id,name,phone").eq("group_id", groupId).eq("is_active", true).order("name"),
+      supabase.from("charges").select("participant_id,description,status").eq("group_id", groupId),
+    ]).then(([g, p, c]) => {
       if (g.data) {
         setGroup(g.data as Group);
         if (g.data.default_monthly_fee) setAmount(String(g.data.default_monthly_fee));
-        const ref = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-        setDescription(`Mensalidade ${ref}`);
+        setDescription(defaultDesc);
       }
       const list = (p.data ?? []) as Participant[];
       setParticipants(list);
-      // Pré-seleciona todos os jogadores ativos (caso de uso mais comum: cobrar todo mundo)
-      setSelected(new Set(list.map((x) => x.id)));
+      // Pré-seleciona apenas quem ainda não pagou a descrição atual
+      const paidIds = new Set(((c.data ?? []) as Array<{ participant_id: string; description: string; status: string }>)
+        .filter((x) => x.status === "pago" && x.description === defaultDesc)
+        .map((x) => x.participant_id));
+      setSelected(new Set(list.filter((x) => !paidIds.has(x.id)).map((x) => x.id)));
     });
   }, [groupId]);
 
@@ -203,24 +227,55 @@ function NewChargePage() {
         )}
 
         <button type="submit" disabled={saving} className="w-full bg-pitch text-paper py-3 font-display text-xl tracking-wide shadow-ledger disabled:opacity-50">
-          {saving ? "GERANDO..." : `GERAR ${selected.size} COBRANÇA${selected.size === 1 ? "" : "S"}`}
+          {saving ? "GERANDO..." : `GERAR ${selected.size} COBRANÇA${selected.size === 1 ? "" : "S"} E ENVIAR PELO WHATSAPP`}
         </button>
       </form>
 
-      {results && <ChargesResultModal charges={results} onClose={() => { setResults(null); navigate({ to: "/grupos/$groupId", params: { groupId } }); }} />}
+      {results && (
+        <ChargesResultModal
+          charges={results}
+          participants={participants}
+          groupName={group.name}
+          onClose={() => { setResults(null); navigate({ to: "/grupos/$groupId", params: { groupId } }); }}
+        />
+      )}
     </main>
   );
 }
 
-function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose: () => void }) {
+function ChargesResultModal({ charges, participants, groupName, onClose }: { charges: MPCharge[]; participants: Participant[]; groupName: string; onClose: () => void }) {
   const [idx, setIdx] = useState(0);
   const c = charges[idx];
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const phoneOf = (pid: string) => participants.find((p) => p.id === pid)?.phone ?? null;
+  const paymentUrlOf = (token: string) => `${typeof window !== "undefined" ? window.location.origin : ""}/pagar/${token}`;
+  const waLinkOf = (ch: MPCharge) => buildWaLink(phoneOf(ch.participant_id), buildChargeMessage({ name: ch.participant_name, groupName, amount: ch.amount, paymentUrl: paymentUrlOf(ch.public_token) }));
+
+  const sendOne = (ch: MPCharge) => {
+    const url = waLinkOf(ch);
+    if (!url) return toast.error("Telefone do jogador não cadastrado");
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const sendAll = () => {
+    const ok = charges.filter((ch) => !ch.error);
+    if (ok.length === 0) return toast.error("Nenhuma cobrança válida");
+    let opened = 0;
+    ok.forEach((ch, i) => {
+      const url = waLinkOf(ch);
+      if (!url) return;
+      // Abre em sequência com pequeno atraso para o browser não bloquear popups
+      setTimeout(() => window.open(url, "_blank", "noopener,noreferrer"), i * 350);
+      opened++;
+    });
+    toast.success(`Abrindo ${opened} conversa(s) no WhatsApp`);
+  };
+
   const copy = async (text: string | null) => {
     if (!text) return;
     await navigator.clipboard.writeText(text);
     toast.success("Pix copiado!");
   };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
       <div className="bg-white border-2 border-ink shadow-ledger max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -232,6 +287,13 @@ function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose
           <button onClick={onClose} className="text-2xl px-2">×</button>
         </div>
         <div className="p-6 space-y-4">
+          <button
+            onClick={sendAll}
+            className="w-full bg-[#25D366] text-white py-3 font-display text-lg tracking-wide shadow-ledger hover:opacity-90 transition-opacity"
+          >
+            ENVIAR TODOS PELO WHATSAPP ({charges.filter((x) => !x.error).length})
+          </button>
+
           <div className="text-center">
             <div className="text-[10px] font-bold uppercase tracking-widest text-faded">{c.description}</div>
             <div className="font-display text-5xl text-pitch mt-1">{fmt(c.amount)}</div>
@@ -243,6 +305,16 @@ function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose
             </div>
           ) : (
             <>
+              <button
+                onClick={() => sendOne(c)}
+                className="w-full bg-[#25D366] text-white py-2 font-display text-base tracking-wide hover:opacity-90 transition-opacity"
+              >
+                ENVIAR PARA {c.participant_name.split(" ")[0].toUpperCase()} NO WHATSAPP
+              </button>
+              {!phoneOf(c.participant_id) && (
+                <p className="text-[10px] text-canarinho text-center">⚠ Sem telefone cadastrado — o WhatsApp abrirá sem destinatário.</p>
+              )}
+
               {c.pix_qr_code && (
                 <div className="flex justify-center">
                   <img src={`data:image/png;base64,${c.pix_qr_code}`} alt="QR Code Pix" className="size-56 border-2 border-ink/10" />
@@ -263,6 +335,7 @@ function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose
             </>
           )}
         </div>
+
         {charges.length > 1 && (
           <div className="flex gap-2 p-4 border-t-2 border-ink/10">
             <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="flex-1 py-2 border border-ink/20 text-xs font-bold uppercase tracking-widest disabled:opacity-30">← Anterior</button>

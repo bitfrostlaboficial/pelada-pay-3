@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { buildWaLink, buildChargeMessage } from "./grupos.$groupId.cobrar";
 
 export const Route = createFileRoute("/_authenticated/grupos/$groupId")({
   head: () => ({ meta: [{ title: "Súmula — Peladeiro" }] }),
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/_authenticated/grupos/$groupId")({
 });
 
 type Group = { id: string; name: string; description: string | null; default_monthly_fee: number | null; pix_key: string | null; pix_recipient_name: string | null };
-type Participant = { id: string; name: string; position: string | null; jersey_number: number | null; type: "mensalista" | "avulso"; is_active: boolean };
+type Participant = { id: string; name: string; position: string | null; jersey_number: number | null; type: "mensalista" | "avulso"; is_active: boolean; phone: string | null };
 type Charge = { id: string; participant_id: string; description: string; amount: number; due_date: string; status: "pendente" | "pago" | "vencido" | "cancelado"; paid_at: string | null; public_token: string; created_at: string };
 
 function GroupDashboard() {
@@ -141,7 +142,26 @@ function GroupDashboard() {
                     <div className="col-span-5 md:col-span-3 text-right flex items-center justify-end gap-2 flex-wrap">
                       <StatusBadge status={effStatus} />
                       {c.status === "pendente" && (
-                        <button onClick={() => markPaid(c.id)} className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 border border-pitch text-pitch hover:bg-pitch hover:text-paper transition-colors">Marcar pago</button>
+                        <>
+                          <button
+                            onClick={() => {
+                              const part = participants.find((p) => p.id === c.participant_id);
+                              const url = buildWaLink(part?.phone ?? null, buildChargeMessage({
+                                name: part?.name ?? "",
+                                groupName: group.name,
+                                amount: Number(c.amount),
+                                paymentUrl: `${window.location.origin}/pagar/${c.public_token}`,
+                              }));
+                              if (!url) return toast.error("Telefone não cadastrado");
+                              if (!part?.phone) toast.message("Sem telefone — WhatsApp abrirá sem destinatário");
+                              window.open(url, "_blank", "noopener,noreferrer");
+                            }}
+                            className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 border border-[#25D366] text-[#25D366] hover:bg-[#25D366] hover:text-white transition-colors"
+                          >
+                            Reenviar WA
+                          </button>
+                          <button onClick={() => markPaid(c.id)} className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 border border-pitch text-pitch hover:bg-pitch hover:text-paper transition-colors">Marcar pago</button>
+                        </>
                       )}
                       <Link to="/pagar/$token" params={{ token: c.public_token }} target="_blank" className="text-[10px] font-bold uppercase tracking-widest text-faded hover:text-pitch">Link ↗</Link>
                     </div>
