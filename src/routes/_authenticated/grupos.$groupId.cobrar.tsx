@@ -44,7 +44,10 @@ function NewChargePage() {
         const ref = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
         setDescription(`Mensalidade ${ref}`);
       }
-      setParticipants((p.data ?? []) as Participant[]);
+      const list = (p.data ?? []) as Participant[];
+      setParticipants(list);
+      // Pré-seleciona todos os jogadores ativos (caso de uso mais comum: cobrar todo mundo)
+      setSelected(new Set(list.map((x) => x.id)));
     });
   }, [groupId]);
 
