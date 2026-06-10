@@ -243,15 +243,39 @@ function NewChargePage() {
   );
 }
 
-function ChargesResultModal({ charges, onClose }: { charges: MPCharge[]; onClose: () => void }) {
+function ChargesResultModal({ charges, participants, groupName, onClose }: { charges: MPCharge[]; participants: Participant[]; groupName: string; onClose: () => void }) {
   const [idx, setIdx] = useState(0);
   const c = charges[idx];
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const phoneOf = (pid: string) => participants.find((p) => p.id === pid)?.phone ?? null;
+  const paymentUrlOf = (token: string) => `${typeof window !== "undefined" ? window.location.origin : ""}/pagar/${token}`;
+  const waLinkOf = (ch: MPCharge) => buildWaLink(phoneOf(ch.participant_id), buildChargeMessage({ name: ch.participant_name, groupName, amount: ch.amount, paymentUrl: paymentUrlOf(ch.public_token) }));
+
+  const sendOne = (ch: MPCharge) => {
+    const url = waLinkOf(ch);
+    if (!url) return toast.error("Telefone do jogador não cadastrado");
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+  const sendAll = () => {
+    const ok = charges.filter((ch) => !ch.error);
+    if (ok.length === 0) return toast.error("Nenhuma cobrança válida");
+    let opened = 0;
+    ok.forEach((ch, i) => {
+      const url = waLinkOf(ch);
+      if (!url) return;
+      // Abre em sequência com pequeno atraso para o browser não bloquear popups
+      setTimeout(() => window.open(url, "_blank", "noopener,noreferrer"), i * 350);
+      opened++;
+    });
+    toast.success(`Abrindo ${opened} conversa(s) no WhatsApp`);
+  };
+
   const copy = async (text: string | null) => {
     if (!text) return;
     await navigator.clipboard.writeText(text);
     toast.success("Pix copiado!");
   };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
       <div className="bg-white border-2 border-ink shadow-ledger max-w-md w-full max-h-[90vh] overflow-y-auto">
