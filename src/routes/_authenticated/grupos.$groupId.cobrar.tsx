@@ -202,7 +202,7 @@ function NewChargePage() {
           </div>
         )}
 
-        <button type="submit" disabled={saving || selected.size === 0} className="w-full bg-pitch text-paper py-3 font-display text-xl tracking-wide shadow-ledger disabled:opacity-50">
+        <button type="submit" disabled={saving} className="w-full bg-pitch text-paper py-3 font-display text-xl tracking-wide shadow-ledger disabled:opacity-50">
           {saving ? "GERANDO..." : `GERAR ${selected.size} COBRANÇA${selected.size === 1 ? "" : "S"}`}
         </button>
       </form>
