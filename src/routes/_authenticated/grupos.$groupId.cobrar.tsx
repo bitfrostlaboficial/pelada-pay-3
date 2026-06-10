@@ -57,12 +57,15 @@ function NewChargePage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("CHARGE_BUTTON_CLICKED", { selected: Array.from(selected), provider, amount, description, dueDate });
     if (selected.size === 0) return toast.error("Selecione ao menos um jogador");
     if (!group) return;
+    console.log("GROUP_SELECTED", group);
     setSaving(true);
 
     if (provider === "mercado_pago") {
       try {
+        console.log("START_MERCADOPAGO_CHARGE");
         const res = await createMP({
           data: {
             groupId,
@@ -72,12 +75,15 @@ function NewChargePage() {
             dueDate,
           },
         });
+        console.log("MERCADOPAGO_RESPONSE", res);
         const okCount = res.charges.filter((c) => !c.error).length;
         if (okCount > 0) toast.success(`${okCount} cobrança(s) gerada(s) no Mercado Pago`);
         const errs = res.charges.filter((c) => c.error);
         if (errs.length > 0) toast.error(`Falha em ${errs.length}: ${errs[0].error}`);
+        console.log("CHARGE_CREATED", res.charges);
         setResults(res.charges);
       } catch (err) {
+        console.error("MERCADOPAGO_ERROR", err);
         const msg = err instanceof Error ? err.message : "Erro ao gerar cobrança";
         toast.error(`Não foi possível gerar a cobrança. ${msg}`);
       } finally {
