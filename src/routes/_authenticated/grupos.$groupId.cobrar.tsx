@@ -287,6 +287,13 @@ function ChargesResultModal({ charges, participants, groupName, onClose }: { cha
           <button onClick={onClose} className="text-2xl px-2">×</button>
         </div>
         <div className="p-6 space-y-4">
+          <button
+            onClick={sendAll}
+            className="w-full bg-[#25D366] text-white py-3 font-display text-lg tracking-wide shadow-ledger hover:opacity-90 transition-opacity"
+          >
+            ENVIAR TODOS PELO WHATSAPP ({charges.filter((x) => !x.error).length})
+          </button>
+
           <div className="text-center">
             <div className="text-[10px] font-bold uppercase tracking-widest text-faded">{c.description}</div>
             <div className="font-display text-5xl text-pitch mt-1">{fmt(c.amount)}</div>
@@ -298,6 +305,16 @@ function ChargesResultModal({ charges, participants, groupName, onClose }: { cha
             </div>
           ) : (
             <>
+              <button
+                onClick={() => sendOne(c)}
+                className="w-full bg-[#25D366] text-white py-2 font-display text-base tracking-wide hover:opacity-90 transition-opacity"
+              >
+                ENVIAR PARA {c.participant_name.split(" ")[0].toUpperCase()} NO WHATSAPP
+              </button>
+              {!phoneOf(c.participant_id) && (
+                <p className="text-[10px] text-canarinho text-center">⚠ Sem telefone cadastrado — o WhatsApp abrirá sem destinatário.</p>
+              )}
+
               {c.pix_qr_code && (
                 <div className="flex justify-center">
                   <img src={`data:image/png;base64,${c.pix_qr_code}`} alt="QR Code Pix" className="size-56 border-2 border-ink/10" />
@@ -318,6 +335,7 @@ function ChargesResultModal({ charges, participants, groupName, onClose }: { cha
             </>
           )}
         </div>
+
         {charges.length > 1 && (
           <div className="flex gap-2 p-4 border-t-2 border-ink/10">
             <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="flex-1 py-2 border border-ink/20 text-xs font-bold uppercase tracking-widest disabled:opacity-30">← Anterior</button>
